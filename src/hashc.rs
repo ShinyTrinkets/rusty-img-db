@@ -1,4 +1,5 @@
 use blake2::{Blake2b512, Blake2s256};
+use clap::ValueEnum;
 use digest::Digest;
 use sha2::{Sha224, Sha256, Sha384, Sha512};
 
@@ -22,6 +23,7 @@ fn hash_hex<T: Digest>(data: &[u8]) -> String {
 }
 
 /// Allowed crypto hashes
+#[derive(Clone, PartialEq, Eq, PartialOrd, Ord, ValueEnum)]
 pub enum HashC {
     Sha224,
     Sha256,

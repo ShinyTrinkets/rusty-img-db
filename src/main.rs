@@ -1,6 +1,7 @@
 #![allow(non_snake_case)]
 
 use clap::Parser;
+use imgDB::hashc::HashC;
 use imgDB::img::img_to_meta;
 
 #[derive(Parser)]
@@ -10,6 +11,8 @@ use imgDB::img::img_to_meta;
 struct Cli {
     #[arg(long)]
     img: String,
+    #[arg(long, value_enum)]
+    chash: Option<Vec<HashC>>,
 }
 
 fn main() {
