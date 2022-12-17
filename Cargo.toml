@@ -1,0 +1,22 @@
+[package]
+name = "imgDB"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+readme = "README.md"
+description = "A image DB library"
+
+[lib]
+name = "imgDB"
+
+[dependencies]
+blake2 = "0.10.5"
+clap = { version = "4.0.29", features = ["derive"] }
+digest = "0.10.6"
+image = "0.24.5"
+sha2 = "0.10.6"
+
+[dev-dependencies]
+criterion = "0.4"
