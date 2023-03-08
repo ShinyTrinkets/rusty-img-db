@@ -1,24 +1,24 @@
-use crate::hashc;
 use image::io::Reader as ImageReader;
 use std::collections::HashMap;
 use std::fs;
 use std::io::{Cursor, Read};
 
+use crate::cli::Cli;
+use crate::hashc;
+
 /// High level function to extract all possible data from a image path
-pub fn img_to_meta(pth: String) -> Img {
+pub fn img_to_meta(opts: Cli) -> Img {
     let mut raw: Vec<u8> = Vec::new();
+    let pth = String::from(opts.img);
     fs::File::open(pth).unwrap().read_to_end(&mut raw).unwrap();
 
-    let hashc: HashMap<String, String> = HashMap::from([
-        (
-            "sha256".to_string(),
-            hashc::hash_c(hashc::HashC::Sha256, &raw),
-        ),
-        (
-            "blake256".to_string(),
-            hashc::hash_c(hashc::HashC::Blake256, &raw),
-        ),
-    ]);
+    let mut hashc = HashMap::new();
+    if opts.chash != None {
+        for h in opts.chash.unwrap() {
+            hashc.insert(h.to_string().to_ascii_lowercase(), hashc::hash_c(h, &raw));
+        }
+    }
+
     Img {
         hashc: hashc,
         ..raw_to_meta(raw)
@@ -27,19 +27,52 @@ pub fn img_to_meta(pth: String) -> Img {
 
 /// High level function to extract data from a raw image vector
 pub fn raw_to_meta(raw: Vec<u8>) -> Img {
+    let meta = rexiv2::Metadata::new_from_buffer(&raw).unwrap();
+    println!("TYPE {}", meta.get_media_type().unwrap());
+
+    if meta.has_exif() {
+        for t in meta.get_exif_tags().unwrap() {
+            if t.contains("Exif.Thumbnai") {
+                println!("EXIF {}", t);
+            } else {
+                println!("EXIF {} = {}", &t, meta.get_tag_string(&t).unwrap());
+            }
+        }
+
+        println!("exposure {}", meta.get_exposure_time().unwrap());
+        println!("fnumber {}", meta.get_fnumber().unwrap());
+        println!("focal_length {}", meta.get_focal_length().unwrap());
+        println!("ISO {}", meta.get_iso_speed().unwrap());
+    }
+
+    if meta.has_iptc() {
+        for t in meta.get_iptc_tags().unwrap() {
+            println!("IPTC {}  =  {}", &t, meta.get_tag_string(&t).unwrap());
+        }
+    }
+
+    if meta.has_xmp() {
+        for t in meta.get_xmp_tags().unwrap() {
+            println!("XMP {}  =  {}", &t, meta.get_tag_string(&t).unwrap());
+        }
+    }
+
     let reader = ImageReader::new(Cursor::new(&raw))
         .with_guessed_format()
         .unwrap();
 
     let img_format = reader.format().unwrap();
-    let img = reader.decode().unwrap();
-    let img_color = img.color();
+    // let img = reader.decode().unwrap();
+    // let img_color = img.color();
 
     Img {
         date: String::from("today"),
-        width: img.width() as u16,
-        height: img.height() as u16,
-        color: format!("{img_color:#?}").to_uppercase(),
+        width: 0,
+        height: 0,
+        color: "X".to_string(),
+        // width: img.width() as u16,
+        // height: img.height() as u16,
+        // color: format!("{img_color:#?}").to_uppercase(),
         format: format!("{img_format:#?}").to_uppercase(),
         bytes: raw.len() as u32,
         hashc: HashMap::new(),

@@ -12,10 +12,11 @@ description = "A image DB library"
 name = "imgDB"
 
 [dependencies]
-blake2 = "0.10.5"
-clap = { version = "4.0.29", features = ["derive"] }
+blake2 = "0.10.6"
+clap = { version = "4.1.6", features = ["derive"] }
 digest = "0.10.6"
 image = "0.24.5"
+rexiv2 = "0.10.0"
 sha2 = "0.10.6"
 
 [dev-dependencies]
