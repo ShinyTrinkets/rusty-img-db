@@ -13,5 +13,5 @@ fn main() {
     //
     let cli = Cli::parse();
     println!("IMG: {:?}", cli.img);
-    println!("Meta: {:?}", img_to_meta(cli));
+    println!("{:#?}", img_to_meta(cli));
 }

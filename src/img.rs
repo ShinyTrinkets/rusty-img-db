@@ -28,21 +28,27 @@ pub fn img_to_meta(opts: Cli) -> Img {
 /// High level function to extract data from a raw image vector
 pub fn raw_to_meta(raw: Vec<u8>) -> Img {
     let meta = rexiv2::Metadata::new_from_buffer(&raw).unwrap();
-    println!("TYPE {}", meta.get_media_type().unwrap());
+    let mime_type = meta.get_media_type().unwrap();
+    let mut img_meta = ImgMeta::new();
 
     if meta.has_exif() {
         for t in meta.get_exif_tags().unwrap() {
-            if t.contains("Exif.Thumbnai") {
+            if t.contains(".Thumbnail.") {
                 println!("EXIF {}", t);
             } else {
                 println!("EXIF {} = {}", &t, meta.get_tag_string(&t).unwrap());
             }
         }
 
-        println!("exposure {}", meta.get_exposure_time().unwrap());
-        println!("fnumber {}", meta.get_fnumber().unwrap());
-        println!("focal_length {}", meta.get_focal_length().unwrap());
-        println!("ISO {}", meta.get_iso_speed().unwrap());
+        img_meta.maker = meta.get_tag_string("Exif.Image.Make").unwrap();
+        img_meta.model = meta.get_tag_string("Exif.Image.Model").unwrap();
+        img_meta.lens_maker = meta.get_tag_string("Exif.Photo.LensMake").unwrap();
+        img_meta.lens_model = meta.get_tag_string("Exif.Photo.LensModel").unwrap();
+
+        img_meta.aperture = meta.get_fnumber().unwrap().to_string();
+        img_meta.shutter_speed = meta.get_exposure_time().unwrap().to_string();
+        img_meta.focal_length = meta.get_focal_length().unwrap().to_string();
+        img_meta.iso = meta.get_iso_speed().unwrap() as u32;
     }
 
     if meta.has_iptc() {
@@ -55,6 +61,15 @@ pub fn raw_to_meta(raw: Vec<u8>) -> Img {
         for t in meta.get_xmp_tags().unwrap() {
             println!("XMP {}  =  {}", &t, meta.get_tag_string(&t).unwrap());
         }
+        if meta.has_tag("Xmp.xmp.Rating") {
+            img_meta.rating = meta.get_tag_numeric("Xmp.xmp.Rating") as u8;
+        }
+        if meta.has_tag("Xmp.xmp.Label") {
+            img_meta.label = meta.get_tag_string("Xmp.xmp.Label").unwrap();
+        }
+        if meta.has_tag("Xmp.dc.subject") {
+            img_meta.subject = meta.get_tag_string("Xmp.dc.subject").unwrap();
+        }
     }
 
     let reader = ImageReader::new(Cursor::new(&raw))
@@ -62,21 +77,20 @@ pub fn raw_to_meta(raw: Vec<u8>) -> Img {
         .unwrap();
 
     let img_format = reader.format().unwrap();
-    // let img = reader.decode().unwrap();
-    // let img_color = img.color();
+    let img = reader.decode().unwrap();
+    let img_color = img.color();
 
     Img {
         date: String::from("today"),
-        width: 0,
-        height: 0,
-        color: "X".to_string(),
-        // width: img.width() as u16,
-        // height: img.height() as u16,
-        // color: format!("{img_color:#?}").to_uppercase(),
-        format: format!("{img_format:#?}").to_uppercase(),
+        width: img.width() as u16,
+        height: img.height() as u16,
+        color: format!("{img_color:?}").to_uppercase(),
+        format: format!("{img_format:?}").to_uppercase(),
+        mime: format!("{mime_type}"),
         bytes: raw.len() as u32,
         hashc: HashMap::new(),
         // hashv: hashv,
+        meta: img_meta,
     }
 }
 
@@ -86,12 +100,16 @@ pub struct Img {
     date: String,
     color: String,
     format: String,
+    // mime type
+    mime: String,
     // image size width & height
     width: u16,
     height: u16,
     // disk size bytes
     bytes: u32,
     hashc: HashMap<String, String>,
+    // hashv
+    meta: ImgMeta,
 }
 
 #[derive(Clone, PartialEq, Eq, Debug)]
@@ -99,19 +117,46 @@ pub struct ImgMeta {
     // Extra stuff from EXIF, IPTC, XMP & ICC Profile
     // This could potentially be a HashMap, to allow flexible fields
     //
-    // camera maker & model
-    maker_model: String,
-    lens_make: String,
+    // camera & lens, maker & model
+    maker: String,
+    model: String,
+    lens_maker: String,
     lens_model: String,
 
+    // F stops
     aperture: String,
+    // exposure time in sec
     shutter_speed: String,
+    // focal length in mm
     focal_length: String,
     iso: u32,
 
+    // manual XMP tags
     rating: u8,
     label: String,
+    subject: String,
     keywords: String,
     headline: String,
     caption: String,
+}
+
+impl ImgMeta {
+    fn new() -> ImgMeta {
+        ImgMeta {
+            maker: "".to_string(),
+            model: "".to_string(),
+            lens_maker: "".to_string(),
+            lens_model: "".to_string(),
+            aperture: "".to_string(),
+            shutter_speed: "".to_string(),
+            focal_length: "".to_string(),
+            iso: 0,
+            rating: 0,
+            label: "".to_string(),
+            subject: "".to_string(),
+            keywords: "".to_string(),
+            headline: "".to_string(),
+            caption: "".to_string(),
+        }
+    }
 }
