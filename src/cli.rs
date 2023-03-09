@@ -1,4 +1,6 @@
 use clap::Parser;
+use std::path::PathBuf;
+
 use crate::hashc::HashC;
 
 /// CLI options
@@ -7,10 +9,17 @@ use crate::hashc::HashC;
 #[command(author = "Cristi Constantin")]
 #[command(version = "0.1")]
 pub struct Cli {
+    #[arg(short, long)]
+    pub input: Vec<PathBuf>,
+    #[arg(long, default_value_t = 0)]
+    pub limit: usize,
     #[arg(long)]
-    pub img: String,
+    pub deep: Option<bool>,
+
+    // crypto hashes
     #[arg(long, value_enum)]
-    pub chash: Option<Vec<HashC>>, // crypto hash
+    pub chash: Option<Vec<HashC>>,
+    // visual hashes
+    // #[arg(long, value_enum)]
+    // vhash: Option<Vec<HashC>>,
 }
-// #[arg(long, value_enum)]
-// vhash: Option<Vec<HashC>>, // visual hash

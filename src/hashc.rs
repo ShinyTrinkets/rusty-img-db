@@ -5,7 +5,7 @@ use sha2::{Sha224, Sha256, Sha384, Sha512};
 use std::fmt;
 
 /// Crypto hash
-pub fn hash_c(h: HashC, data: &[u8]) -> String {
+pub fn hash_c(h: &HashC, data: &[u8]) -> String {
     match h {
         HashC::Sha224 => hash_hex::<Sha224>(data),
         HashC::Sha256 => hash_hex::<Sha256>(data),

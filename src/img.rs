@@ -7,15 +7,14 @@ use crate::cli::Cli;
 use crate::hashc;
 
 /// High level function to extract all possible data from a image path
-pub fn img_to_meta(opts: Cli) -> Img {
+pub fn img_to_meta(pth: String, opts: &Cli) -> Img {
     let mut raw: Vec<u8> = Vec::new();
-    let pth = String::from(opts.img);
     fs::File::open(pth).unwrap().read_to_end(&mut raw).unwrap();
 
     let mut hashc = HashMap::new();
     if opts.chash != None {
-        for h in opts.chash.unwrap() {
-            hashc.insert(h.to_string().to_ascii_lowercase(), hashc::hash_c(h, &raw));
+        for h in opts.chash.as_ref().unwrap() {
+            hashc.insert(h.to_string(), hashc::hash_c(&h, &raw));
         }
     }
 
@@ -26,10 +25,14 @@ pub fn img_to_meta(opts: Cli) -> Img {
 }
 
 /// High level function to extract data from a raw image vector
-pub fn raw_to_meta(raw: Vec<u8>) -> Img {
-    let meta = rexiv2::Metadata::new_from_buffer(&raw).unwrap();
+fn raw_to_meta(raw: Vec<u8>) -> Img {
+    let meta = match rexiv2::Metadata::new_from_buffer(&raw) {
+        Ok(m) => m,
+        _ => return Img::empty(),
+    };
+
     let mime_type = meta.get_media_type().unwrap();
-    let mut img_meta = ImgMeta::new();
+    let mut img_meta = ImgMeta::empty();
 
     if meta.has_exif() {
         for t in meta.get_exif_tags().unwrap() {
@@ -112,6 +115,23 @@ pub struct Img {
     meta: ImgMeta,
 }
 
+impl Img {
+    fn empty() -> Img {
+        Img {
+            date: "".to_string(),
+            color: "".to_string(),
+            format: "".to_string(),
+            mime: "".to_string(),
+            width: 0,
+            height: 0,
+            bytes: 0,
+            hashc: HashMap::new(),
+            // hashv
+            meta: ImgMeta::empty(),
+        }
+    }
+}
+
 #[derive(Clone, PartialEq, Eq, Debug)]
 pub struct ImgMeta {
     // Extra stuff from EXIF, IPTC, XMP & ICC Profile
@@ -141,7 +161,7 @@ pub struct ImgMeta {
 }
 
 impl ImgMeta {
-    fn new() -> ImgMeta {
+    fn empty() -> ImgMeta {
         ImgMeta {
             maker: "".to_string(),
             model: "".to_string(),

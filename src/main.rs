@@ -3,6 +3,7 @@
 use clap::Parser;
 use imgDB::cli::Cli;
 use imgDB::img::img_to_meta;
+use imgDB::os::find_files;
 
 fn main() {
     // Steps to IMPORT to img-DB:
@@ -12,6 +13,8 @@ fn main() {
     // - write image data to disk as HTML or whatever
     //
     let cli = Cli::parse();
-    println!("IMG: {:?}", cli.img);
-    println!("{:#?}", img_to_meta(cli));
+    let pths = find_files(&cli.input, &cli);
+    for p in pths {
+        println!("{:?}", img_to_meta(p.to_string_lossy().to_string(), &cli));
+    }
 }
