@@ -1,4 +1,5 @@
 use image::io::Reader as ImageReader;
+use rexiv2::Metadata;
 use std::collections::HashMap;
 use std::fs;
 use std::io::{Cursor, Read};
@@ -24,15 +25,19 @@ pub fn img_to_meta(pth: String, opts: &Cli) -> Img {
         return i2.merge(i1);
     }
 
-    let mut hashc = HashMap::new();
+    let mut hashc: Vec<(String, String)> = Vec::new();
     if opts.chash != None {
         for h in opts.chash.as_ref().unwrap() {
-            hashc.insert(h.to_string(), hashc::hash_c(&h, &raw));
+            hashc.push((h.to_string(), hashc::hash_c(&h, &raw)));
         }
     }
-
     // assert widths & heights (and others) are the same
-    i1.merge(i2)
+    let mut result = i1.merge(i2);
+    result.hashc = hashc.into_iter().collect();
+
+    // TODO: if no date, get from os.stat
+
+    result
 }
 
 /// Read and decode a raw image vector
@@ -75,16 +80,15 @@ fn raw_to_meta(raw: &Vec<u8>) -> Img {
     result.mime = format!("{mime_type}");
 
     if meta.has_exif() {
-        for t in meta.get_exif_tags().unwrap() {
-            if t.contains(".Thumbnail.") {
-                println!("EXIF {}", t);
-            } else {
-                println!("EXIF {} = {}", &t, meta.get_tag_string(&t).unwrap());
-            }
-        }
+        // for t in meta.get_exif_tags().unwrap() {
+        //     if t.contains(".Thumbnail.") {
+        //         println!("EXIF {}", t);
+        //     } else {
+        //         println!("EXIF {} = {}", &t, meta.get_tag_string(&t).unwrap());
+        //     }
+        // }
 
-        // Exif.Image.ImageWidth
-        // Exif.Image.ImageLength
+        result.date = get_img_date(&meta);
 
         img_meta.maker = match meta.get_tag_string("Exif.Image.Make") {
             Ok(v) => v,
@@ -128,6 +132,8 @@ fn raw_to_meta(raw: &Vec<u8>) -> Img {
         for t in meta.get_iptc_tags().unwrap() {
             println!("IPTC {}  =  {}", &t, meta.get_tag_string(&t).unwrap());
         }
+
+        // IPTC:DateCreated
     }
 
     if meta.has_xmp() {
@@ -143,10 +149,40 @@ fn raw_to_meta(raw: &Vec<u8>) -> Img {
         if meta.has_tag("Xmp.dc.subject") {
             img_meta.subject = meta.get_tag_string("Xmp.dc.subject").unwrap();
         }
+
+        // XMP:DateCreated
     }
 
     result.meta = img_meta;
     result
+}
+
+fn get_img_date(meta: &Metadata) -> String {
+    let date = match meta.get_tag_string("Exif.Photo.DateTimeOriginal") {
+        Ok(v) => v,
+        _ => String::from(""),
+    };
+    if date.len() > 6 {
+        return date;
+    }
+
+    let date = match meta.get_tag_string("Exif.Photo.DateTimeDigitized") {
+        Ok(v) => v,
+        _ => String::from(""),
+    };
+    if date.len() > 6 {
+        return date;
+    }
+
+    let date = match meta.get_tag_string("Exif.Photo.DateTime") {
+        Ok(v) => v,
+        _ => String::from(""),
+    };
+    if date.len() > 6 {
+        return date;
+    }
+
+    String::from("")
 }
 
 #[derive(Clone, PartialEq, Eq, Debug, Default)]

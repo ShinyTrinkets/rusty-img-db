@@ -56,5 +56,9 @@ pub fn find_files(pths: &[PathBuf], opts: &Cli) -> Vec<PathBuf> {
         }
     }
 
+    if opts.shuffle {
+        files.shuffle(&mut rng);
+    }
+
     files
 }
