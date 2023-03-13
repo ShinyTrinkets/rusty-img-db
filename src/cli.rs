@@ -13,8 +13,10 @@ pub struct Cli {
     pub input: Vec<PathBuf>,
     #[arg(long, default_value_t = 0)]
     pub limit: usize,
-    #[arg(long)]
-    pub deep: Option<bool>,
+    #[arg(long, default_value_t = false)]
+    pub deep: bool,
+    #[arg(long, default_value_t = false)]
+    pub shuffle: bool,
 
     // crypto hashes
     #[arg(long, value_enum)]

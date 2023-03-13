@@ -8,8 +8,21 @@ use crate::hashc;
 
 /// High level function to extract all possible data from a image path
 pub fn img_to_meta(pth: String, opts: &Cli) -> Img {
+    println!("Image: {}", pth);
     let mut raw: Vec<u8> = Vec::new();
-    fs::File::open(pth).unwrap().read_to_end(&mut raw).unwrap();
+    fs::File::open(&pth).unwrap().read_to_end(&mut raw).unwrap();
+
+    let i1 = raw_to_image(&raw);
+    if i1.is_empty() {
+        println!("Cannot decode image format!");
+        return i1;
+    }
+
+    let i2 = raw_to_meta(&raw);
+    if i2.is_empty() {
+        println!("Cannot read image Metadata!");
+        return i2.merge(i1);
+    }
 
     let mut hashc = HashMap::new();
     if opts.chash != None {
@@ -18,21 +31,48 @@ pub fn img_to_meta(pth: String, opts: &Cli) -> Img {
         }
     }
 
-    Img {
-        hashc: hashc,
-        ..raw_to_meta(raw)
-    }
+    // assert widths & heights (and others) are the same
+    i1.merge(i2)
 }
 
-/// High level function to extract data from a raw image vector
-fn raw_to_meta(raw: Vec<u8>) -> Img {
+/// Read and decode a raw image vector
+fn raw_to_image(raw: &Vec<u8>) -> Img {
+    let reader = match ImageReader::new(Cursor::new(&raw)).with_guessed_format() {
+        Ok(m) => m,
+        _ => return Img::default(),
+    };
+    if reader.format() == None {
+        return Img::default();
+    }
+
+    let img_format = reader.format().unwrap();
+    let img = reader.decode().unwrap();
+    let img_color = img.color();
+
+    let mut result = Img::default();
+    result.bytes = raw.len() as u32;
+    result.width = img.width() as u16;
+    result.height = img.height() as u16;
+    result.color = format!("{img_color:?}").to_uppercase();
+    result.format = format!("{img_format:?}").to_uppercase();
+    result
+}
+
+/// Extract meta-data from a raw image vector
+fn raw_to_meta(raw: &Vec<u8>) -> Img {
     let meta = match rexiv2::Metadata::new_from_buffer(&raw) {
         Ok(m) => m,
-        _ => return Img::empty(),
+        _ => return Img::default(),
     };
 
     let mime_type = meta.get_media_type().unwrap();
-    let mut img_meta = ImgMeta::empty();
+    let mut img_meta = ImgMeta::default();
+
+    let mut result = Img::default();
+    result.bytes = raw.len() as u32;
+    result.width = meta.get_pixel_width() as u16;
+    result.height = meta.get_pixel_height() as u16;
+    result.mime = format!("{mime_type}");
 
     if meta.has_exif() {
         for t in meta.get_exif_tags().unwrap() {
@@ -43,15 +83,45 @@ fn raw_to_meta(raw: Vec<u8>) -> Img {
             }
         }
 
-        img_meta.maker = meta.get_tag_string("Exif.Image.Make").unwrap();
-        img_meta.model = meta.get_tag_string("Exif.Image.Model").unwrap();
-        img_meta.lens_maker = meta.get_tag_string("Exif.Photo.LensMake").unwrap();
-        img_meta.lens_model = meta.get_tag_string("Exif.Photo.LensModel").unwrap();
+        // Exif.Image.ImageWidth
+        // Exif.Image.ImageLength
 
-        img_meta.aperture = meta.get_fnumber().unwrap().to_string();
-        img_meta.shutter_speed = meta.get_exposure_time().unwrap().to_string();
-        img_meta.focal_length = meta.get_focal_length().unwrap().to_string();
-        img_meta.iso = meta.get_iso_speed().unwrap() as u32;
+        img_meta.maker = match meta.get_tag_string("Exif.Image.Make") {
+            Ok(v) => v,
+            _ => String::from(""),
+        };
+        img_meta.model = match meta.get_tag_string("Exif.Image.Model") {
+            Ok(v) => v,
+            _ => String::from(""),
+        };
+        img_meta.lens_maker = match meta.get_tag_string("Exif.Photo.LensMake") {
+            Ok(v) => v,
+            _ => String::from(""),
+        };
+        img_meta.lens_model = match meta.get_tag_string("Exif.Photo.LensModel") {
+            Ok(v) => v,
+            _ => String::from(""),
+        };
+
+        img_meta.aperture = match meta.get_fnumber() {
+            Some(v) => v.to_string(),
+            _ => String::from(""),
+        };
+        img_meta.shutter_speed = match meta.get_exposure_time() {
+            // this is a Ratio, maybe I can improve
+            Some(v) => v.to_string(),
+            _ => String::from(""),
+        };
+        img_meta.focal_length = match meta.get_focal_length() {
+            Some(v) => v.to_string(),
+            _ => String::from(""),
+        };
+        img_meta.iso = match meta.get_iso_speed() {
+            Some(v) => v as u32,
+            _ => 0,
+        };
+    } else {
+        println!("No EXIF");
     }
 
     if meta.has_iptc() {
@@ -75,29 +145,11 @@ fn raw_to_meta(raw: Vec<u8>) -> Img {
         }
     }
 
-    let reader = ImageReader::new(Cursor::new(&raw))
-        .with_guessed_format()
-        .unwrap();
-
-    let img_format = reader.format().unwrap();
-    let img = reader.decode().unwrap();
-    let img_color = img.color();
-
-    Img {
-        date: String::from("today"),
-        width: img.width() as u16,
-        height: img.height() as u16,
-        color: format!("{img_color:?}").to_uppercase(),
-        format: format!("{img_format:?}").to_uppercase(),
-        mime: format!("{mime_type}"),
-        bytes: raw.len() as u32,
-        hashc: HashMap::new(),
-        // hashv: hashv,
-        meta: img_meta,
-    }
+    result.meta = img_meta;
+    result
 }
 
-#[derive(Clone, PartialEq, Eq, Debug)]
+#[derive(Clone, PartialEq, Eq, Debug, Default)]
 pub struct Img {
     // creation date
     date: String,
@@ -116,23 +168,55 @@ pub struct Img {
 }
 
 impl Img {
-    fn empty() -> Img {
-        Img {
-            date: "".to_string(),
-            color: "".to_string(),
-            format: "".to_string(),
-            mime: "".to_string(),
-            width: 0,
-            height: 0,
-            bytes: 0,
+    fn merge(self, other: Img) -> Self {
+        Self {
+            date: if self.date != "" {
+                self.date
+            } else {
+                other.date
+            },
+            color: if self.color != "" {
+                self.color
+            } else {
+                other.color
+            },
+            format: if self.format != "" {
+                self.format
+            } else {
+                other.format
+            },
+            mime: if self.mime != "" {
+                self.mime
+            } else {
+                other.mime
+            },
+            width: if self.width > 0 {
+                self.width
+            } else {
+                other.width
+            },
+            height: if self.height > 0 {
+                self.height
+            } else {
+                other.height
+            },
+            bytes: if self.bytes > 0 {
+                self.bytes
+            } else {
+                other.bytes
+            },
             hashc: HashMap::new(),
-            // hashv
-            meta: ImgMeta::empty(),
+            // hashv ?
+            meta: self.meta.merge(other.meta),
         }
+    }
+
+    fn is_empty(&self) -> bool {
+        self.bytes == 0 && self.width == 0 && self.height == 0
     }
 }
 
-#[derive(Clone, PartialEq, Eq, Debug)]
+#[derive(Clone, PartialEq, Eq, Debug, Default)]
 pub struct ImgMeta {
     // Extra stuff from EXIF, IPTC, XMP & ICC Profile
     // This could potentially be a HashMap, to allow flexible fields
@@ -161,22 +245,74 @@ pub struct ImgMeta {
 }
 
 impl ImgMeta {
-    fn empty() -> ImgMeta {
-        ImgMeta {
-            maker: "".to_string(),
-            model: "".to_string(),
-            lens_maker: "".to_string(),
-            lens_model: "".to_string(),
-            aperture: "".to_string(),
-            shutter_speed: "".to_string(),
-            focal_length: "".to_string(),
-            iso: 0,
-            rating: 0,
-            label: "".to_string(),
-            subject: "".to_string(),
-            keywords: "".to_string(),
-            headline: "".to_string(),
-            caption: "".to_string(),
+    fn merge(self, other: ImgMeta) -> Self {
+        Self {
+            maker: if self.maker != "" {
+                self.maker
+            } else {
+                other.maker
+            },
+            model: if self.model != "" {
+                self.model
+            } else {
+                other.model
+            },
+            lens_maker: if self.lens_maker != "" {
+                self.lens_maker
+            } else {
+                other.lens_maker
+            },
+            lens_model: if self.lens_model != "" {
+                self.lens_model
+            } else {
+                other.lens_model
+            },
+            aperture: if self.aperture != "" {
+                self.aperture
+            } else {
+                other.aperture
+            },
+            shutter_speed: if self.shutter_speed != "" {
+                self.shutter_speed
+            } else {
+                other.shutter_speed
+            },
+            focal_length: if self.focal_length != "" {
+                self.focal_length
+            } else {
+                other.focal_length
+            },
+            iso: if self.iso > 0 { self.iso } else { other.iso },
+            rating: if self.rating > 0 {
+                self.rating
+            } else {
+                other.rating
+            },
+            label: if self.label != "" {
+                self.label
+            } else {
+                other.label
+            },
+            subject: if self.subject != "" {
+                self.subject
+            } else {
+                other.subject
+            },
+            keywords: if self.keywords != "" {
+                self.keywords
+            } else {
+                other.keywords
+            },
+            headline: if self.headline != "" {
+                self.headline
+            } else {
+                other.headline
+            },
+            caption: if self.caption != "" {
+                self.caption
+            } else {
+                other.caption
+            },
         }
     }
 }
