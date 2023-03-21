@@ -1,4 +1,6 @@
+use image::imageops::FilterType;
 use image::io::Reader as ImageReader;
+use image::{DynamicImage, GrayImage};
 use rexiv2::Metadata;
 use std::collections::HashMap;
 use std::fs;
@@ -6,6 +8,7 @@ use std::io::{Cursor, Read};
 
 use crate::cli::Cli;
 use crate::hashc;
+use crate::hashv;
 
 /// High level function to extract all possible data from a image path
 pub fn img_to_meta(pth: String, opts: &Cli) -> Img {
@@ -13,7 +16,7 @@ pub fn img_to_meta(pth: String, opts: &Cli) -> Img {
     let mut raw: Vec<u8> = Vec::new();
     fs::File::open(&pth).unwrap().read_to_end(&mut raw).unwrap();
 
-    let i1 = raw_to_image(&raw);
+    let (img, i1) = raw_to_image(&raw);
     if i1.is_empty() {
         println!("Cannot decode image format!");
         return i1;
@@ -24,16 +27,35 @@ pub fn img_to_meta(pth: String, opts: &Cli) -> Img {
         println!("Cannot read image Metadata!");
         return i2.merge(i1);
     }
+    // TODO: assert widths & heights (and others) are the same
 
-    let mut hashc: Vec<(String, String)> = Vec::new();
-    if opts.chash != None {
-        for h in opts.chash.as_ref().unwrap() {
-            hashc.push((h.to_string(), hashc::hash_c(&h, &raw)));
-        }
-    }
-    // assert widths & heights (and others) are the same
     let mut result = i1.merge(i2);
-    result.hashc = hashc.into_iter().collect();
+
+    //
+    // calculate visual hashes
+    if opts.vhash != None {
+        // downscale full image using triangle linear filter because it's fast and a bit blurry
+        let small_img = img.resize_exact(16, 16, FilterType::Triangle);
+        let mut hv: Vec<(String, String)> = Vec::new();
+        for h in opts.vhash.as_ref().unwrap() {
+            let key = h.to_string().to_ascii_lowercase();
+            let val = hashv::hash_v(&h, small_img.grayscale().into_luma8());
+            hv.push((key, val));
+        }
+        result.hashv = hv.into_iter().collect();
+    }
+
+    //
+    // calculate cryptographic hashes
+    if opts.chash != None {
+        let mut hc: Vec<(String, String)> = Vec::new();
+        for h in opts.chash.as_ref().unwrap() {
+            let key = h.to_string().to_ascii_uppercase();
+            let val = hashc::hash_c(&h, &raw);
+            hc.push((key, val));
+        }
+        result.hashc = hc.into_iter().collect();
+    }
 
     // TODO: if no date, get from os.stat
 
@@ -41,13 +63,17 @@ pub fn img_to_meta(pth: String, opts: &Cli) -> Img {
 }
 
 /// Read and decode a raw image vector
-fn raw_to_image(raw: &Vec<u8>) -> Img {
+fn raw_to_image(raw: &Vec<u8>) -> (DynamicImage, Img) {
     let reader = match ImageReader::new(Cursor::new(&raw)).with_guessed_format() {
         Ok(m) => m,
-        _ => return Img::default(),
+        _ => {
+            let gray: GrayImage = GrayImage::new(1, 1);
+            return (DynamicImage::ImageLuma8(gray), Img::default());
+        }
     };
     if reader.format() == None {
-        return Img::default();
+        let gray: GrayImage = GrayImage::new(1, 1);
+        return (DynamicImage::ImageLuma8(gray), Img::default());
     }
 
     let img_format = reader.format().unwrap();
@@ -60,7 +86,8 @@ fn raw_to_image(raw: &Vec<u8>) -> Img {
     result.height = img.height() as u16;
     result.color = format!("{img_color:?}").to_uppercase();
     result.format = format!("{img_format:?}").to_uppercase();
-    result
+
+    (img, result)
 }
 
 /// Extract meta-data from a raw image vector
@@ -140,6 +167,7 @@ fn raw_to_meta(raw: &Vec<u8>) -> Img {
         for t in meta.get_xmp_tags().unwrap() {
             println!("XMP {}  =  {}", &t, meta.get_tag_string(&t).unwrap());
         }
+
         if meta.has_tag("Xmp.xmp.Rating") {
             img_meta.rating = meta.get_tag_numeric("Xmp.xmp.Rating") as u8;
         }
@@ -199,7 +227,7 @@ pub struct Img {
     // disk size bytes
     bytes: u32,
     hashc: HashMap<String, String>,
-    // hashv
+    hashv: HashMap<String, String>,
     meta: ImgMeta,
 }
 
@@ -241,8 +269,8 @@ impl Img {
             } else {
                 other.bytes
             },
-            hashc: HashMap::new(),
-            // hashv ?
+            hashc: self.hashc.into_iter().chain(other.hashc).collect(),
+            hashv: self.hashv.into_iter().chain(other.hashv).collect(),
             meta: self.meta.merge(other.meta),
         }
     }

@@ -2,6 +2,7 @@ use clap::Parser;
 use std::path::PathBuf;
 
 use crate::hashc::HashC;
+use crate::hashv::HashV;
 
 /// CLI options
 #[derive(Parser)]
@@ -22,6 +23,6 @@ pub struct Cli {
     #[arg(long, value_enum)]
     pub chash: Option<Vec<HashC>>,
     // visual hashes
-    // #[arg(long, value_enum)]
-    // vhash: Option<Vec<HashC>>,
+    #[arg(long, value_enum)]
+    pub vhash: Option<Vec<HashV>>,
 }

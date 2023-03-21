@@ -6,7 +6,7 @@ use sha2::{Sha224, Sha256, Sha384, Sha512};
 use std::fmt;
 use std::hash::Hasher;
 
-/// Crypto hash
+/// Cryptographical hash
 pub fn hash_c(h: &HashC, data: &[u8]) -> String {
     match h {
         HashC::Sha224 => hash_hex::<Sha224>(data),
