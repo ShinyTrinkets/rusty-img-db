@@ -1,7 +1,10 @@
 #![allow(non_snake_case)]
 
-use clap::Parser;
-use imgDB::cli::Cli;
+use argh;
+use serde_json;
+
+use imgDB::cli::{Cli, Commands};
+use imgDB::config::Config;
 use imgDB::img::img_to_meta;
 use imgDB::os::find_files;
 
@@ -12,9 +15,16 @@ fn main() {
     // - process each and every image (disk, size, type, color, exif, hashes, etc)
     // - write image data to disk as HTML or whatever
     //
-    let cli = Cli::parse();
-    let pths = find_files(&cli.input, &cli);
-    for p in pths {
-        println!("{:?}", img_to_meta(p.to_string_lossy().to_string(), &cli));
+    let cli: Cli = argh::from_env();
+    match cli.nested {
+        Commands::Import(cmd) => {
+            let input = &cmd.input.clone();
+            let cfg = Config::from(cmd);
+            let pths = find_files(input, &cfg);
+            for p in pths {
+                let i = img_to_meta(p.to_str().unwrap(), &cfg);
+                println!("{}", serde_json::to_string(&i).unwrap());
+            }
+        }
     }
 }

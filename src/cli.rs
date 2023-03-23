@@ -1,28 +1,44 @@
-use clap::Parser;
+use argh::FromArgs;
 use std::path::PathBuf;
 
 use crate::hashc::HashC;
 use crate::hashv::HashV;
 
 /// CLI options
-#[derive(Parser)]
-#[command(name = "imgDB")]
-#[command(author = "Cristi Constantin")]
-#[command(version = "0.1")]
+#[derive(FromArgs, PartialEq, Debug)]
 pub struct Cli {
-    #[arg(short, long)]
+    #[argh(subcommand)]
+    pub nested: Commands,
+}
+
+#[derive(FromArgs, PartialEq, Debug)]
+#[argh(subcommand)]
+pub enum Commands {
+    Import(ImportArgs),
+}
+
+/// First subcommand
+#[derive(FromArgs, PartialEq, Debug)]
+#[argh(subcommand, name = "import")]
+pub struct ImportArgs {
+    /// input files
+    #[argh(option, short = 'i')]
     pub input: Vec<PathBuf>,
-    #[arg(long, default_value_t = 0)]
-    pub limit: usize,
-    #[arg(long, default_value_t = false)]
+    /// limit files
+    #[argh(option, default = "0")]
+    pub limit: u16,
+
+    /// scan deep
+    #[argh(switch)]
     pub deep: bool,
-    #[arg(long, default_value_t = false)]
+    /// shuffle files
+    #[argh(switch)]
     pub shuffle: bool,
 
-    // crypto hashes
-    #[arg(long, value_enum)]
-    pub chash: Option<Vec<HashC>>,
-    // visual hashes
-    #[arg(long, value_enum)]
-    pub vhash: Option<Vec<HashV>>,
+    /// crypto hashes
+    #[argh(option)]
+    pub chash: Vec<HashC>,
+    /// visual hashes
+    #[argh(option)]
+    pub vhash: Vec<HashV>,
 }

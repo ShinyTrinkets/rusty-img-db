@@ -1,10 +1,10 @@
 use blake2::{Blake2b512, Blake2s256};
-use clap::ValueEnum;
 use crc32fast;
 use digest::Digest;
 use sha2::{Sha224, Sha256, Sha384, Sha512};
 use std::fmt;
 use std::hash::Hasher;
+use strum_macros::EnumString;
 
 /// Cryptographical hash
 pub fn hash_c(h: &HashC, data: &[u8]) -> String {
@@ -32,7 +32,8 @@ fn crc_hex<T: Hasher>(data: &[u8]) -> String {
 }
 
 /// Allowed crypto hashes
-#[derive(Clone, PartialEq, Eq, ValueEnum, Debug)]
+#[derive(Clone, PartialEq, Eq, Debug, EnumString)]
+#[strum(ascii_case_insensitive)]
 pub enum HashC {
     Crc32,
     Sha224,

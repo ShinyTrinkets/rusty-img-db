@@ -2,19 +2,20 @@ use image::imageops::FilterType;
 use image::io::Reader as ImageReader;
 use image::{DynamicImage, GrayImage};
 use rexiv2::Metadata;
+use serde::{Deserialize, Serialize};
+
 use std::collections::HashMap;
 use std::fs;
 use std::io::{Cursor, Read};
 
-use crate::cli::Cli;
+use crate::config::Config;
 use crate::hashc;
 use crate::hashv;
 
 /// High level function to extract all possible data from a image path
-pub fn img_to_meta(pth: String, opts: &Cli) -> Img {
-    println!("Image: {}", pth);
+pub fn img_to_meta(pth: &str, cfg: &Config) -> Img {
     let mut raw: Vec<u8> = Vec::new();
-    fs::File::open(&pth).unwrap().read_to_end(&mut raw).unwrap();
+    fs::File::open(pth).unwrap().read_to_end(&mut raw).unwrap();
 
     let (img, i1) = raw_to_image(&raw);
     if i1.is_empty() {
@@ -30,14 +31,15 @@ pub fn img_to_meta(pth: String, opts: &Cli) -> Img {
     // TODO: assert widths & heights (and others) are the same
 
     let mut result = i1.merge(i2);
+    result.pth = pth.to_string();
 
     //
     // calculate visual hashes
-    if opts.vhash != None {
+    if cfg.vhash.len() > 0 {
         // downscale full image using triangle linear filter because it's fast and a bit blurry
         let small_img = img.resize_exact(16, 16, FilterType::Triangle);
         let mut hv: Vec<(String, String)> = Vec::new();
-        for h in opts.vhash.as_ref().unwrap() {
+        for h in &cfg.vhash {
             let key = h.to_string().to_ascii_lowercase();
             let val = hashv::hash_v(&h, small_img.grayscale().into_luma8());
             hv.push((key, val));
@@ -47,9 +49,9 @@ pub fn img_to_meta(pth: String, opts: &Cli) -> Img {
 
     //
     // calculate cryptographic hashes
-    if opts.chash != None {
+    if cfg.chash.len() > 0 {
         let mut hc: Vec<(String, String)> = Vec::new();
-        for h in opts.chash.as_ref().unwrap() {
+        for h in &cfg.chash {
             let key = h.to_string().to_ascii_uppercase();
             let val = hashc::hash_c(&h, &raw);
             hc.push((key, val));
@@ -213,8 +215,9 @@ fn get_img_date(meta: &Metadata) -> String {
     String::from("")
 }
 
-#[derive(Clone, PartialEq, Eq, Debug, Default)]
+#[derive(Clone, PartialEq, Eq, Debug, Default, Deserialize, Serialize)]
 pub struct Img {
+    pth: String,
     // creation date
     date: String,
     color: String,
@@ -234,6 +237,7 @@ pub struct Img {
 impl Img {
     fn merge(self, other: Img) -> Self {
         Self {
+            pth: if self.pth != "" { self.pth } else { other.pth },
             date: if self.date != "" {
                 self.date
             } else {
@@ -280,7 +284,7 @@ impl Img {
     }
 }
 
-#[derive(Clone, PartialEq, Eq, Debug, Default)]
+#[derive(Clone, PartialEq, Eq, Debug, Default, Deserialize, Serialize)]
 pub struct ImgMeta {
     // Extra stuff from EXIF, IPTC, XMP & ICC Profile
     // This could potentially be a HashMap, to allow flexible fields

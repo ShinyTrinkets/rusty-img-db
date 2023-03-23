@@ -4,9 +4,9 @@ use rand::seq::SliceRandom;
 use rand::thread_rng;
 use std::path::PathBuf;
 
-use crate::cli::Cli;
+use crate::config::Config;
 
-pub fn find_files(pths: &[PathBuf], opts: &Cli) -> Vec<PathBuf> {
+pub fn find_files(pths: &[PathBuf], cfg: &Config) -> Vec<PathBuf> {
     let mut stop = false;
     let mut rng = thread_rng();
     let mut files: Vec<PathBuf> = Vec::new();
@@ -22,11 +22,11 @@ pub fn find_files(pths: &[PathBuf], opts: &Cli) -> Vec<PathBuf> {
         }
         if fd.is_file() {
             files.push(fd.to_path_buf());
-            if opts.limit > 0 && files.len() == opts.limit {
+            if cfg.limit > 0 && files.len() as u16 == cfg.limit as u16 {
                 stop = true;
             }
         } else if fd.is_dir() {
-            let pat = if opts.deep {
+            let pat = if cfg.deep {
                 fd.join("**/*.*")
             } else {
                 fd.join("*.*")
@@ -36,7 +36,7 @@ pub fn find_files(pths: &[PathBuf], opts: &Cli) -> Vec<PathBuf> {
                 .unwrap()
                 .map(|x: Result<PathBuf, GlobError>| x.unwrap())
                 .collect();
-            if opts.shuffle {
+            if cfg.shuffle {
                 found.shuffle(&mut rng);
             } else {
                 found.sort();
@@ -46,7 +46,7 @@ pub fn find_files(pths: &[PathBuf], opts: &Cli) -> Vec<PathBuf> {
                 if p.is_file() {
                     files.push(p);
                 }
-                if opts.limit > 0 && files.len() == opts.limit {
+                if cfg.limit > 0 && files.len() as u16 == cfg.limit {
                     stop = true;
                     break;
                 }
@@ -56,7 +56,7 @@ pub fn find_files(pths: &[PathBuf], opts: &Cli) -> Vec<PathBuf> {
         }
     }
 
-    if opts.shuffle {
+    if cfg.shuffle {
         files.shuffle(&mut rng);
     }
 

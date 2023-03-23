@@ -1,6 +1,6 @@
-use clap::ValueEnum;
 use image::GrayImage;
 use std::fmt;
+use strum_macros::EnumString;
 
 /// Visual/Perceptual hash
 pub fn hash_v(h: &HashV, image: GrayImage) -> String {
@@ -85,7 +85,8 @@ fn dhash(image: GrayImage) -> u64 {
 }
 
 /// Allowed visual hashes
-#[derive(Clone, PartialEq, Eq, ValueEnum, Debug)]
+#[derive(Clone, PartialEq, Eq, Debug, EnumString)]
+#[strum(ascii_case_insensitive)]
 pub enum HashV {
     Ahash,
     Dhash,
