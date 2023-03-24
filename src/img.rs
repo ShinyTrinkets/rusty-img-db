@@ -157,13 +157,11 @@ fn raw_to_meta(raw: &Vec<u8>) -> Img {
         println!("No EXIF");
     }
 
-    if meta.has_iptc() {
-        for t in meta.get_iptc_tags().unwrap() {
-            println!("IPTC {}  =  {}", &t, meta.get_tag_string(&t).unwrap());
-        }
-
-        // IPTC:DateCreated
-    }
+    // if meta.has_iptc() {
+    //     for t in meta.get_iptc_tags().unwrap() {
+    //         println!("IPTC {}  =  {}", &t, meta.get_tag_string(&t).unwrap());
+    //     }
+    // }
 
     if meta.has_xmp() {
         for t in meta.get_xmp_tags().unwrap() {
@@ -179,8 +177,6 @@ fn raw_to_meta(raw: &Vec<u8>) -> Img {
         if meta.has_tag("Xmp.dc.subject") {
             img_meta.subject = meta.get_tag_string("Xmp.dc.subject").unwrap();
         }
-
-        // XMP:DateCreated
     }
 
     result.meta = img_meta;
@@ -188,29 +184,32 @@ fn raw_to_meta(raw: &Vec<u8>) -> Img {
 }
 
 fn get_img_date(meta: &Metadata) -> String {
-    let date = match meta.get_tag_string("Exif.Photo.DateTimeOriginal") {
-        Ok(v) => v,
-        _ => String::from(""),
+    let tag_to_date = |s: &str| -> String {
+        match meta.get_tag_string(s) {
+            Ok(v) => v,
+            _ => String::from(""),
+        }
     };
+
+    let date = tag_to_date("Exif.Photo.DateTimeOriginal");
+    if date.len() > 6 {
+        return date;
+    }
+    let date = tag_to_date("Exif.Photo.DateTimeDigitized");
+    if date.len() > 6 {
+        return date;
+    }
+    let date = tag_to_date("Exif.Photo.DateTime");
+    if date.len() > 6 {
+        return date;
+    }
+    let date = tag_to_date("Exif.Photo.DateTime");
     if date.len() > 6 {
         return date;
     }
 
-    let date = match meta.get_tag_string("Exif.Photo.DateTimeDigitized") {
-        Ok(v) => v,
-        _ => String::from(""),
-    };
-    if date.len() > 6 {
-        return date;
-    }
-
-    let date = match meta.get_tag_string("Exif.Photo.DateTime") {
-        Ok(v) => v,
-        _ => String::from(""),
-    };
-    if date.len() > 6 {
-        return date;
-    }
+    // XMP:DateCreated
+    // IPTC:DateCreated
 
     String::from("")
 }

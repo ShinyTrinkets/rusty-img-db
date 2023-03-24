@@ -15,9 +15,11 @@ pub struct Cli {
 #[argh(subcommand)]
 pub enum Commands {
     Import(ImportArgs),
+    Gallery(GalleryArgs),
+    Links(LinksArgs),
 }
 
-/// First subcommand
+/// Import sub-command
 #[derive(FromArgs, PartialEq, Debug)]
 #[argh(subcommand, name = "import")]
 pub struct ImportArgs {
@@ -41,4 +43,28 @@ pub struct ImportArgs {
     /// visual hashes
     #[argh(option)]
     pub vhash: Vec<HashV>,
+}
+
+/// Gallery sub-command
+#[derive(FromArgs, PartialEq, Debug)]
+#[argh(subcommand, name = "gallery")]
+pub struct GalleryArgs {
+    /// database file to use
+    #[argh(option, short = 'x')]
+    pub dbname: String,
+    /// output file
+    #[argh(option)]
+    pub output: String,
+}
+
+/// Links sub-command
+#[derive(FromArgs, PartialEq, Debug)]
+#[argh(subcommand, name = "links")]
+pub struct LinksArgs {
+    /// database file to use
+    #[argh(option, short = 'x')]
+    pub dbname: String,
+    /// output file
+    #[argh(option)]
+    pub output: String,
 }

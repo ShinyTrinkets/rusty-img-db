@@ -1,12 +1,14 @@
 // use serde::{Deserialize, Serialize};
 
-use crate::cli::ImportArgs;
+use crate::cli::*;
 use crate::hashc::HashC;
 use crate::hashv::HashV;
 
 pub fn default_config() -> Config {
     Config {
         dbname: String::from("imgdb.htm"),
+        thumb_sz: 128,
+        thumb_qual: 70,
         ..Default::default()
     }
 }
@@ -18,8 +20,8 @@ pub struct Config {
 
     // /// input: a list or files, or folders
     // pub inputs: Vec<String>,
-    // /// output: the output folder
-    // pub output: String,
+    /// output: the output folder
+    pub output: String,
 
     /// limit files
     pub limit: u16,
@@ -44,13 +46,32 @@ impl From<ImportArgs> for Config {
         let cfg = default_config();
         Config {
             // inputs: args.input,
-            // output: args.output,
             limit: args.limit,
             deep: args.deep,
             shuffle: args.shuffle,
             chash: args.chash,
             vhash: args.vhash,
             ..cfg
+        }
+    }
+}
+
+impl From<GalleryArgs> for Config {
+    fn from(args: GalleryArgs) -> Config {
+        Config {
+            dbname: args.dbname,
+            output: args.output,
+            ..default_config()
+        }
+    }
+}
+
+impl From<LinksArgs> for Config {
+    fn from(args: LinksArgs) -> Config {
+        Config {
+            dbname: args.dbname,
+            output: args.output,
+            ..default_config()
         }
     }
 }
