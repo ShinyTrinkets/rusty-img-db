@@ -1,0 +1,271 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta http-equiv="X-UA-Compatible" content="ie=edge">
+    <style>
+        html,
+        body {
+            height: 99.9%;
+            margin: 0;
+        }
+        body {
+            font-size: 16px;
+            font-family: monospace;
+            padding: 2rem 1rem;
+        }
+        small {
+            font-size: .7em;
+            line-height: 1rem;
+        }
+        .bottom {
+            padding: 0 1rem 1rem .5rem;
+        }
+    
+        #header {
+            display: flex;
+            justify-content: center;
+            place-items: baseline;
+            background: #d0d0d0cc;
+            border: 1px solid #999;
+            top: -1px;
+            left: 50%;
+            position: fixed;
+            padding: .7rem 2rem .7rem 2rem;
+            transform: translateX(-50%);
+        }
+        .hidden {
+            display: none;
+            visibility: hidden;
+        }
+        .row {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .col-auto {
+            margin-left: 1rem;
+            flex: 0 0 auto;
+            width: auto;
+        }
+        .row label {
+            font-size: .8rem;
+            margin: 0 .75rem 0 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .input-group {
+            position: relative;
+            display: flex;
+            flex-wrap: wrap;
+            align-items: stretch;
+            width: 100%;
+        }
+        .input-group>.form-control {
+            font-size: 1rem;
+            position: relative;
+            flex: 1 1 auto;
+            min-width: 12px;
+            width: 1%;
+        }
+        .input-group-append {
+            font-size: 1rem;
+            display: flex;
+            align-items: center;
+            text-align: center;
+            margin-left: -1px;
+            border-top-left-radius: 0;
+            border-bottom-left-radius: 0;
+        }
+        #searchBy,
+        #sortBy,
+        #sortBy option {
+            background-color: #eee;
+            border: 1px solid #999;
+            font-size: .8rem;
+            padding-left: .5em;
+            padding-right: .25em;
+        }
+        #searchBy {
+            margin: 0;
+            width: 12em;
+        }
+        #sortBy {
+            width: 9em;
+        }
+        #sortOrd,
+        #clearSearch {
+            background-color: #eee;
+            border: 1px solid #999;
+            cursor: pointer;
+            font-size: .75em;
+            font-weight: 600;
+            line-height: 1.5;
+            padding-left: .6em;
+            padding-right: .6em;
+            text-align: center;
+            text-decoration: none;
+            user-select: none;
+        }
+        .grid-layout {
+            display: grid;
+            gap: .5rem;
+        }
+        .grid-item {
+            margin: 0;
+            overflow: hidden;
+            padding: .5rem;
+            align-content: end;
+            display: grid;
+            height: 90%;
+        }
+        .grid-header {
+            align-content: center;
+        }
+        .grid-item img {
+            max-width: 100%;
+            margin-bottom: 0.25rem;
+        }
+        #modalWrap {
+            position: fixed;
+            left: 0;
+            top: 0;
+            padding-top: 1rem;
+            width: 100%;
+            height: 99.9%;
+            overflow: auto;
+            background-color: rgba(0, 0, 0, 0.1);
+            opacity: 0;
+            transform: scale(0.9, 0.9);
+            transition: all 0.44s ease-in-out;
+            z-index: -1;
+        }
+        #modalWrap.open {
+            background-color: rgba(0, 0, 0, 0.9);
+            opacity: 1;
+            transform: scale(1, 1);
+            z-index: 999;
+        }
+        #modalImg {
+            margin: auto;
+            display: block;
+            max-height: 100%;
+            max-width: 90%;
+        }
+        #modalClose {
+            position: absolute;
+            top: 15px;
+            right: 35px;
+            color: #f1f1f1;
+            font-size: 40px;
+            font-weight: bold;
+            transition: 0.3s;
+        }
+        #modalClose:hover,
+        #modalClose:focus {
+            color: #bbb;
+            text-decoration: none;
+            cursor: pointer;
+        }
+    </style>
+    <title>{{ title }}</title>
+</head>
+<body>
+    <main>
+        <p style="padding-bottom:1rem">The gallery has {{ imgs | length }} images.</p>
+        <main id="mainLayout">
+            <div class="hidden"></div>
+            <div class="no-group grid-layout">
+                {% for img in imgs -%}
+                <figure class="grid-item">
+                    <figcaption>
+                        <img src="{{ img.b64 }}" data-pth="{{ img.pth }}">
+                        <small>{{ img.date }}</small>
+                        <small>{{ img.format }} {{ img.width }}×{{ img.height }}</small>
+                    </figcaption>
+                </figure>
+                {% endfor -%}
+            </div>
+        </main>
+        <div id="modalWrap">
+            <span id="modalClose">&times;</span>
+            <img id="modalImg">
+            <div id="caption"></div>
+        </div>
+        <footer class="bottom">
+            <div class="h-card">
+                <p>img-DB © 2020-2023<a class="p-name" rel="me"> - Cristi Constantin</a></p>
+            </div>
+        </footer>
+    </main>
+
+    <script>
+        function preventDefault(ev) {
+            ev.preventDefault();
+        }
+        function setupGrid() {
+            let maxWidth = 0;
+            const imgs = document.querySelectorAll("#mainLayout img");
+            for (let img of Array.from(imgs)) {
+                if (img.naturalWidth > maxWidth)
+                    maxWidth = img.naturalWidth;
+            }
+            const cssGridFix = document.createElement("style");
+            cssGridFix.innerText = `.grid-layout { grid-template-columns:repeat( auto-fill, minmax(${maxWidth}px, 1fr) ); }`;
+            document.head.appendChild(cssGridFix);
+        }
+        function setupModal() {
+            const modal = document.getElementById("modalWrap");
+            const modalImg = document.getElementById("modalImg");
+            const wheelEvent = "onwheel" in modal ? "wheel" : "mousewheel";
+            function disableScroll() {
+                window.addEventListener(wheelEvent, preventDefault, { passive: false });
+                window.addEventListener("touchmove", preventDefault, { passive: false });
+            }
+            function enableScroll() {
+                window.removeEventListener(wheelEvent, preventDefault, { passive: false });
+                window.removeEventListener("touchmove", preventDefault, { passive: false });
+            }
+            function closeModal() {
+                modal.classList.remove("open");
+                enableScroll();
+                modalImg.src = "";
+            }
+            modal.onclick = function (ev) {
+                if (ev.target.tagName !== "IMG")
+                    closeModal();
+            };
+            document.body.onkeydown = function (ev) {
+                if (ev.key === "Escape")
+                    closeModal();
+                else if (ev.key === "ArrowRight" || ev.key === "ArrowLeft") {
+                    let next = null;
+                    const img = document.getElementById(modalImg.getAttribute("data-id"));
+                    if (ev.key === "ArrowRight")
+                        next = img.parentElement.nextElementSibling.querySelector("img");
+                    else
+                        next = img.parentElement.previousElementSibling.querySelector("img");
+                    modalImg.src = next.getAttribute("data-pth");
+                    modalImg.setAttribute("data-id", next.id);
+                }
+            };
+            document.getElementById("mainLayout").onclick = function (ev) {
+                const tgt = ev.target;
+                if (tgt.tagName !== "IMG") {
+                    return;
+                }
+                modalImg.src = tgt.getAttribute("data-pth");
+                modalImg.setAttribute("data-id", tgt.id);
+                modal.classList.add("open");
+                disableScroll();
+            };
+        }
+        window.addEventListener("load", function () {
+            setupGrid();
+            setupModal();
+        });
+    </script>
+</body>
+</html>

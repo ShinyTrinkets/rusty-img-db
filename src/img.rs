@@ -1,14 +1,14 @@
+use base64::{engine::general_purpose, Engine as _};
 use image::imageops::FilterType;
 use image::io::Reader as ImageReader;
-use image::{DynamicImage, GrayImage};
+use image::{DynamicImage, GrayImage, ImageOutputFormat};
 use rexiv2::Metadata;
 use serde::{Deserialize, Serialize};
-
 use std::collections::HashMap;
 use std::fs;
 use std::io::{Cursor, Read};
 
-use crate::config::Config;
+use crate::config::{Config, ThumbType};
 use crate::hashc;
 use crate::hashv;
 
@@ -17,7 +17,7 @@ pub fn img_to_meta(pth: &str, cfg: &Config) -> Img {
     let mut raw: Vec<u8> = Vec::new();
     fs::File::open(pth).unwrap().read_to_end(&mut raw).unwrap();
 
-    let (img, i1) = raw_to_image(&raw);
+    let (img, i1) = raw_to_image(&raw, cfg);
     if i1.is_empty() {
         println!("Cannot decode image format!");
         return i1;
@@ -65,7 +65,7 @@ pub fn img_to_meta(pth: &str, cfg: &Config) -> Img {
 }
 
 /// Read and decode a raw image vector
-fn raw_to_image(raw: &Vec<u8>) -> (DynamicImage, Img) {
+fn raw_to_image(raw: &Vec<u8>, cfg: &Config) -> (DynamicImage, Img) {
     let reader = match ImageReader::new(Cursor::new(&raw)).with_guessed_format() {
         Ok(m) => m,
         _ => {
@@ -88,8 +88,24 @@ fn raw_to_image(raw: &Vec<u8>) -> (DynamicImage, Img) {
     result.height = img.height() as u16;
     result.color = format!("{img_color:?}").to_uppercase();
     result.format = format!("{img_format:?}").to_uppercase();
+    result.b64 = image_thumb(&img, &cfg);
 
     (img, result)
+}
+
+fn image_thumb(img: &DynamicImage, cfg: &Config) -> String {
+    let thumb_type = match cfg.thumb_type {
+        ThumbType::WebP => ImageOutputFormat::WebP,
+        ThumbType::JPEG => ImageOutputFormat::Jpeg(cfg.thumb_qual),
+        ThumbType::PNG => ImageOutputFormat::Png,
+    };
+    let mut thumb_data: Vec<u8> = Vec::new();
+    let thumb = img.thumbnail(cfg.thumb_sz as u32, cfg.thumb_sz as u32);
+    thumb
+        .write_to(&mut Cursor::new(&mut thumb_data), thumb_type)
+        .unwrap();
+    let thumb_base64 = general_purpose::STANDARD_NO_PAD.encode(thumb_data);
+    format!("data:image/{};base64,{}", cfg.thumb_type, thumb_base64)
 }
 
 /// Extract meta-data from a raw image vector
@@ -164,9 +180,9 @@ fn raw_to_meta(raw: &Vec<u8>) -> Img {
     // }
 
     if meta.has_xmp() {
-        for t in meta.get_xmp_tags().unwrap() {
-            println!("XMP {}  =  {}", &t, meta.get_tag_string(&t).unwrap());
-        }
+        // for t in meta.get_xmp_tags().unwrap() {
+        //     println!("XMP {}  =  {}", &t, meta.get_tag_string(&t).unwrap());
+        // }
 
         if meta.has_tag("Xmp.xmp.Rating") {
             img_meta.rating = meta.get_tag_numeric("Xmp.xmp.Rating") as u8;
@@ -217,6 +233,7 @@ fn get_img_date(meta: &Metadata) -> String {
 #[derive(Clone, PartialEq, Eq, Debug, Default, Deserialize, Serialize)]
 pub struct Img {
     pth: String,
+    b64: String,
     // creation date
     date: String,
     color: String,
@@ -237,6 +254,7 @@ impl Img {
     fn merge(self, other: Img) -> Self {
         Self {
             pth: if self.pth != "" { self.pth } else { other.pth },
+            b64: if self.b64 != "" { self.b64 } else { other.b64 },
             date: if self.date != "" {
                 self.date
             } else {

@@ -1,4 +1,6 @@
 // use serde::{Deserialize, Serialize};
+use std::fmt;
+use strum_macros::EnumString;
 
 use crate::cli::*;
 use crate::hashc::HashC;
@@ -36,9 +38,9 @@ pub struct Config {
     pub vhash: Vec<HashV>,
 
     /// thumb size, quality and type
-    thumb_sz: u16,
-    thumb_qual: u8,
-    thumb_type: String,
+    pub thumb_sz: u16,
+    pub thumb_qual: u8,
+    pub thumb_type: ThumbType,
 }
 
 impl From<ImportArgs> for Config {
@@ -72,6 +74,26 @@ impl From<LinksArgs> for Config {
             dbname: args.dbname,
             output: args.output,
             ..default_config()
+        }
+    }
+}
+
+/// Allowed thumb types
+#[derive(Clone, PartialEq, Eq, Debug, Default, EnumString)]
+#[strum(ascii_case_insensitive)]
+pub enum ThumbType {
+    #[default]
+    WebP,
+    JPEG,
+    PNG,
+}
+
+impl fmt::Display for ThumbType {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match *self {
+            ThumbType::WebP => write!(f, "webp"),
+            ThumbType::JPEG => write!(f, "jpeg"),
+            ThumbType::PNG => write!(f, "png"),
         }
     }
 }

@@ -8,6 +8,7 @@ use imgDB::config::Config;
 use imgDB::db::db_open;
 use imgDB::img::img_to_meta;
 use imgDB::os::find_files;
+use imgDB::gallery::generate_gallery;
 
 fn main() {
     let cli: Cli = argh::from_env();
@@ -30,9 +31,8 @@ fn main() {
         Commands::Gallery(cmd) => {
             let fname = &cmd.dbname.clone();
             let cfg = Config::from(cmd);
-            for img in db_open(fname, &cfg) {
-                println!("{:?}", img);
-            }
+            let imgs = db_open(fname, &cfg);
+            generate_gallery(imgs, &cfg);
         }
         Commands::Links(cmd) => {
             let cfg = Config::from(cmd);
