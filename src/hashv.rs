@@ -13,12 +13,12 @@ pub fn hash_v(h: &HashV, image: GrayImage) -> String {
 /**
  * Calculate the ahash of the provided prepared image.
  *
- * Returns a u64 representing the value of the hash
+ * Returns a u128 representing the value of the hash
  *
  * Ref: https://github.com/warricksothr/Perceptual-Image-Hashing/blob/master/src/hash/ahash.rs
  * Originally by Drew Short
  */
-fn ahash(image: GrayImage) -> u64 {
+fn ahash(image: GrayImage) -> u128 {
     let (width, height) = image.dimensions();
 
     // calculate the average pixel value
@@ -29,7 +29,7 @@ fn ahash(image: GrayImage) -> u64 {
     let mean = total / (height * width) as u64;
 
     // calculate a hash based on the mean
-    let mut hash = 0u64;
+    let mut hash = 0u128;
     for pixel in image.pixels() {
         if pixel.0[0] as u64 >= mean {
             hash |= 1;
@@ -39,26 +39,26 @@ fn ahash(image: GrayImage) -> u64 {
         hash <<= 1;
     }
 
-    // println!("Total: {} Mean: {} Hash: {}", total, mean, hash);
+    // println!("Total: {} Mean: {} AHash: {}", total, mean, hash);
     hash
 }
 
 /**
  * Calculate the dhash of the provided prepared image
  *
- * Returns a u64 representing the value of the hash
+ * Returns a u128 representing the value of the hash
  *
  * Ref: https://github.com/warricksothr/Perceptual-Image-Hashing/blob/master/src/hash/dhash.rs
  * Originally by Drew Short
  */
-fn dhash(image: GrayImage) -> u64 {
+fn dhash(image: GrayImage) -> u128 {
     let first_pixel = image.pixels().nth(0).unwrap();
     let last_pixel = image.pixels().last().unwrap();
     let first_pixel_value = first_pixel.0[0] as u64;
     let last_pixel_value = last_pixel.0[0] as u64;
 
     let mut previous_pixel_value = 0u64;
-    let mut hash = 0u64;
+    let mut hash = 0u128;
     for (x, y, pixel) in image.enumerate_pixels() {
         if x == 0 && y == 0 {
             previous_pixel_value = pixel.0[0] as u64;
@@ -80,7 +80,7 @@ fn dhash(image: GrayImage) -> u64 {
         hash |= 0;
     }
 
-    // println!("Hash: {}", hash);
+    // println!("DHash: {}", hash);
     hash
 }
 

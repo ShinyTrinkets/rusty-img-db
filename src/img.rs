@@ -7,6 +7,7 @@ use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::fs;
 use std::io::{Cursor, Read};
+use upon::Engine;
 
 use crate::config::{Config, ThumbType};
 use crate::hashc;
@@ -18,13 +19,13 @@ pub fn img_to_meta(pth: &str, cfg: &Config) -> Img {
     fs::File::open(pth).unwrap().read_to_end(&mut raw).unwrap();
 
     let (img, i1) = raw_to_image(&raw, cfg);
-    if i1.is_empty() {
+    if i1.is_null() {
         println!("Cannot decode image format!");
         return i1;
     }
 
     let i2 = raw_to_meta(&raw);
-    if i2.is_empty() {
+    if i2.is_null() {
         println!("Cannot read image Metadata!");
         return i2.merge(i1);
     }
@@ -37,7 +38,7 @@ pub fn img_to_meta(pth: &str, cfg: &Config) -> Img {
     // calculate visual hashes
     if cfg.vhash.len() > 0 {
         // downscale full image using triangle linear filter because it's fast and a bit blurry
-        let small_img = img.resize_exact(16, 16, FilterType::Triangle);
+        let small_img = img.resize_exact(8, 8, FilterType::Triangle);
         let mut hv: Vec<(String, String)> = Vec::new();
         for h in &cfg.vhash {
             let key = h.to_string().to_ascii_lowercase();
@@ -60,6 +61,9 @@ pub fn img_to_meta(pth: &str, cfg: &Config) -> Img {
     }
 
     // TODO: if no date, get from os.stat
+
+    // calculate the ID after all the other data is available
+    result.gen_uid(&cfg);
 
     result
 }
@@ -84,8 +88,8 @@ fn raw_to_image(raw: &Vec<u8>, cfg: &Config) -> (DynamicImage, Img) {
 
     let mut result = Img::default();
     result.bytes = raw.len() as u32;
-    result.width = img.width() as u16;
-    result.height = img.height() as u16;
+    result.width = img.width() as u32;
+    result.height = img.height() as u32;
     result.color = format!("{img_color:?}").to_uppercase();
     result.format = format!("{img_format:?}").to_uppercase();
     result.b64 = image_thumb(&img, &cfg);
@@ -120,8 +124,8 @@ fn raw_to_meta(raw: &Vec<u8>) -> Img {
 
     let mut result = Img::default();
     result.bytes = raw.len() as u32;
-    result.width = meta.get_pixel_width() as u16;
-    result.height = meta.get_pixel_height() as u16;
+    result.width = meta.get_pixel_width() as u32;
+    result.height = meta.get_pixel_height() as u32;
     result.mime = format!("{mime_type}");
 
     if meta.has_exif() {
@@ -232,6 +236,8 @@ fn get_img_date(meta: &Metadata) -> String {
 
 #[derive(Clone, PartialEq, Eq, Debug, Default, Deserialize, Serialize)]
 pub struct Img {
+    // image unique ID
+    id: String,
     pth: String,
     b64: String,
     // creation date
@@ -241,8 +247,8 @@ pub struct Img {
     // mime type
     mime: String,
     // image size width & height
-    width: u16,
-    height: u16,
+    width: u32,
+    height: u32,
     // disk size bytes
     bytes: u32,
     hashc: HashMap<String, String>,
@@ -251,53 +257,105 @@ pub struct Img {
 }
 
 impl Img {
+    /// Used for testing, generate a dummy, non-null image
+    pub fn new_blank(cfg: &Config) -> Self {
+        let mut img = Self {
+            pth: String::from("/Images/img.jpg"),
+            color: String::from("RGB8"),
+            format: String::from("JPEG"),
+            mime: String::from("image/jpeg"),
+            bytes: 99,
+            width: 64,
+            height: 64,
+            ..Img::default()
+        };
+
+        // dummy visual hashes
+        if cfg.vhash.len() > 0 {
+            let mut hv: Vec<(String, String)> = Vec::new();
+            for h in &cfg.vhash {
+                let key = h.to_string().to_ascii_lowercase();
+                let val = String::from("C0FFEE");
+                hv.push((key, val));
+            }
+            img.hashv = hv.into_iter().collect();
+        }
+        // dummy crypto hashes
+        if cfg.chash.len() > 0 {
+            let mut hc: Vec<(String, String)> = Vec::new();
+            for h in &cfg.chash {
+                let key = h.to_string().to_ascii_uppercase();
+                let val = hashc::hash_c(&h, String::from("C0FFEE").as_bytes());
+                hc.push((key, val));
+            }
+            img.hashc = hc.into_iter().collect();
+        }
+
+        img.gen_uid(&cfg);
+        img
+    }
+
+    /// Check if the image is null
+    pub fn is_null(&self) -> bool {
+        self.bytes == 0 || self.width == 0 || self.height == 0
+    }
+
+    /// Generate the unique ID of the image
+    fn gen_uid(&mut self, cfg: &Config) {
+        let mut engine = Engine::new();
+        engine.add_filter("trim", |s: String| s.trim().to_owned());
+        engine.add_filter("lower", str::to_lowercase);
+        engine.add_filter("upper", str::to_uppercase);
+
+        let template = engine.compile(&cfg.uid).unwrap();
+        self.id = template.render(upon::value! { img: &self }).unwrap();
+    }
+
     fn merge(self, other: Img) -> Self {
         Self {
-            pth: if self.pth != "" { self.pth } else { other.pth },
-            b64: if self.b64 != "" { self.b64 } else { other.b64 },
-            date: if self.date != "" {
-                self.date
-            } else {
+            id: if other.id != "" { other.id } else { self.id },
+            pth: if other.pth != "" { other.pth } else { self.pth },
+            b64: if other.b64 != "" { other.b64 } else { self.b64 },
+            date: if other.date != "" {
                 other.date
-            },
-            color: if self.color != "" {
-                self.color
             } else {
+                self.date
+            },
+            color: if other.color != "" {
                 other.color
-            },
-            format: if self.format != "" {
-                self.format
             } else {
+                self.color
+            },
+            format: if other.format != "" {
                 other.format
-            },
-            mime: if self.mime != "" {
-                self.mime
             } else {
+                self.format
+            },
+            mime: if other.mime != "" {
                 other.mime
-            },
-            width: if self.width > 0 {
-                self.width
             } else {
+                self.mime
+            },
+            width: if other.width > 0 {
                 other.width
-            },
-            height: if self.height > 0 {
-                self.height
             } else {
+                self.width
+            },
+            height: if other.height > 0 {
                 other.height
-            },
-            bytes: if self.bytes > 0 {
-                self.bytes
             } else {
-                other.bytes
+                self.height
             },
+            bytes: if other.bytes > 0 {
+                other.bytes
+            } else {
+                self.bytes
+            },
+            // merge all hashes, don't replace
             hashc: self.hashc.into_iter().chain(other.hashc).collect(),
             hashv: self.hashv.into_iter().chain(other.hashv).collect(),
             meta: self.meta.merge(other.meta),
         }
-    }
-
-    fn is_empty(&self) -> bool {
-        self.bytes == 0 && self.width == 0 && self.height == 0
     }
 }
 

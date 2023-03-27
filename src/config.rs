@@ -6,17 +6,8 @@ use crate::cli::*;
 use crate::hashc::HashC;
 use crate::hashv::HashV;
 
-pub fn default_config() -> Config {
-    Config {
-        dbname: String::from("imgdb.htm"),
-        thumb_sz: 128,
-        thumb_qual: 70,
-        ..Default::default()
-    }
-}
-
 /// App common config
-#[derive(PartialEq, Eq, Debug, Default)]
+#[derive(PartialEq, Eq, Debug)]
 pub struct Config {
     pub dbname: String,
 
@@ -24,6 +15,10 @@ pub struct Config {
     // pub inputs: Vec<String>,
     /// output: the output folder
     pub output: String,
+
+    // the UID is used to calculate the uniqueness of the img
+    // TODO: validate && sanitize !!
+    pub uid: String,
 
     /// limit files
     pub limit: u16,
@@ -43,9 +38,85 @@ pub struct Config {
     pub thumb_type: ThumbType,
 }
 
+impl Config {
+    pub fn merge(self, other: Config) -> Self {
+        Self {
+            uid: if other.uid != "" { other.uid } else { self.uid },
+            dbname: if other.dbname != "" {
+                other.dbname
+            } else {
+                self.dbname
+            },
+            output: if other.output != "" {
+                other.output
+            } else {
+                self.output
+            },
+            limit: if other.limit > 0 {
+                other.limit
+            } else {
+                self.limit
+            },
+            deep: if self.deep != other.deep {
+                other.deep
+            } else {
+                self.deep
+            },
+            shuffle: if self.shuffle != other.shuffle {
+                other.shuffle
+            } else {
+                self.shuffle
+            },
+            thumb_sz: if other.thumb_sz > 0 {
+                other.thumb_sz
+            } else {
+                self.thumb_sz
+            },
+            thumb_qual: if other.thumb_qual > 0 {
+                other.thumb_qual
+            } else {
+                self.thumb_qual
+            },
+            thumb_type: if self.thumb_type != other.thumb_type {
+                other.thumb_type
+            } else {
+                self.thumb_type
+            },
+            chash: if other.chash.len() > 0 {
+                other.chash
+            } else {
+                self.chash
+            },
+            vhash: if other.vhash.len() > 0 {
+                other.vhash
+            } else {
+                self.vhash
+            },
+        }
+    }
+}
+
+impl Default for Config {
+    fn default() -> Self {
+        Self {
+            uid: String::from("{{ img.hashc.SHA224 }}"),
+            dbname: String::from("imgdb.htm"),
+            output: String::from(""),
+            limit: 0,
+            deep: false,
+            shuffle: false,
+            thumb_sz: 96,
+            thumb_qual: 70,
+            thumb_type: ThumbType::WebP,
+            chash: vec![HashC::Sha224, HashC::Ripemd128],
+            vhash: vec![HashV::Ahash, HashV::Dhash],
+        }
+    }
+}
+
 impl From<ImportArgs> for Config {
     fn from(args: ImportArgs) -> Config {
-        let cfg = default_config();
+        let cfg = Config::default();
         Config {
             // inputs: args.input,
             limit: args.limit,
@@ -63,7 +134,7 @@ impl From<GalleryArgs> for Config {
         Config {
             dbname: args.dbname,
             output: args.output,
-            ..default_config()
+            ..Config::default()
         }
     }
 }
@@ -73,7 +144,7 @@ impl From<LinksArgs> for Config {
         Config {
             dbname: args.dbname,
             output: args.output,
-            ..default_config()
+            ..Config::default()
         }
     }
 }
