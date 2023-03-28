@@ -1,6 +1,7 @@
 #![allow(non_snake_case)]
 
 use argh;
+use rayon::prelude::*;
 use serde_json;
 
 use imgDB::cli::{Cli, Commands};
@@ -30,10 +31,10 @@ fn main() {
                 return;
             }
             let pths = find_files(&input, &cfg);
-            for p in pths {
+            pths.par_iter().for_each(|p| {
                 let i = img_to_meta(p.to_str().unwrap(), &cfg);
                 println!("{}", serde_json::to_string(&i).unwrap());
-            }
+            })
         }
         Commands::Gallery(cmd) => {
             let fname = &cmd.dbname.clone();
