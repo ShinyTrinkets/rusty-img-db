@@ -43,6 +43,17 @@ pub fn find_files(pths: &[PathBuf], cfg: &Config) -> Vec<PathBuf> {
             }
 
             for p in found {
+                if cfg.exts.len() > 0 {
+                    let ext = p
+                        .extension()
+                        .unwrap()
+                        .to_ascii_lowercase()
+                        .into_string()
+                        .unwrap();
+                    if !cfg.exts.contains(&ext) {
+                        continue;
+                    }
+                }
                 if p.is_file() {
                     files.push(p);
                 }

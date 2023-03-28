@@ -20,6 +20,8 @@ pub struct Config {
     // TODO: validate && sanitize !!
     pub uid: String,
 
+    /// allowed extensions
+    pub exts: Vec<String>,
     /// limit files
     pub limit: u16,
     /// scan folders deep?
@@ -32,8 +34,9 @@ pub struct Config {
     /// visual hashes
     pub vhash: Vec<HashV>,
 
-    /// thumb size, quality and type
+    /// thumb size (16...512)
     pub thumb_sz: u16,
+    /// thumb quality (25...99)
     pub thumb_qual: u8,
     pub thumb_type: ThumbType,
 }
@@ -51,6 +54,11 @@ impl Config {
                 other.output
             } else {
                 self.output
+            },
+            exts: if other.exts.len() > 0 {
+                other.exts
+            } else {
+                self.exts
             },
             limit: if other.limit > 0 {
                 other.limit
@@ -99,16 +107,17 @@ impl Config {
 impl Default for Config {
     fn default() -> Self {
         Self {
-            uid: String::from("{{ img.hashc.SHA224 }}"),
+            uid: String::from("{{ hashc.BLAKE256 }}"),
             dbname: String::from("imgdb.htm"),
             output: String::from(""),
+            exts: Vec::new(),
             limit: 0,
             deep: false,
             shuffle: false,
             thumb_sz: 96,
             thumb_qual: 70,
             thumb_type: ThumbType::WebP,
-            chash: vec![HashC::Sha224, HashC::Ripemd128],
+            chash: vec![HashC::Blake256, HashC::Ripemd128],
             vhash: vec![HashV::Ahash, HashV::Dhash],
         }
     }
@@ -119,11 +128,26 @@ impl From<ImportArgs> for Config {
         let cfg = Config::default();
         Config {
             // inputs: args.input,
+            exts: args
+                .exts
+                .iter()
+                .map(|s: &String| s.trim().to_lowercase())
+                .collect::<Vec<String>>(),
             limit: args.limit,
             deep: args.deep,
             shuffle: args.shuffle,
             chash: args.chash,
             vhash: args.vhash,
+            thumb_sz: if args.thumb_sz > 0 {
+                args.thumb_sz
+            } else {
+                cfg.thumb_sz
+            },
+            thumb_qual: if args.thumb_qual > 0 {
+                args.thumb_qual
+            } else {
+                cfg.thumb_qual
+            },
             ..cfg
         }
     }

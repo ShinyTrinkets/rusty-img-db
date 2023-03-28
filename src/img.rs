@@ -22,13 +22,13 @@ pub fn img_to_meta(pth: &str, cfg: &Config) -> Img {
     if i1.is_null() {
         println!("Cannot decode image format!");
         return i1;
-    }
+    };
 
     let i2 = raw_to_meta(&raw);
     if i2.is_null() {
         println!("Cannot read image Metadata!");
         return i2.merge(i1);
-    }
+    };
     // TODO: assert widths & heights (and others) are the same
 
     let mut result = i1.merge(i2);
@@ -46,7 +46,7 @@ pub fn img_to_meta(pth: &str, cfg: &Config) -> Img {
             hv.push((key, val));
         }
         result.hashv = hv.into_iter().collect();
-    }
+    };
 
     //
     // calculate cryptographic hashes
@@ -58,12 +58,12 @@ pub fn img_to_meta(pth: &str, cfg: &Config) -> Img {
             hc.push((key, val));
         }
         result.hashc = hc.into_iter().collect();
-    }
+    };
 
     // TODO: if no date, get from os.stat
 
     // calculate the ID after all the other data is available
-    result.gen_uid(&cfg);
+    result.id = result.gen_uid(&cfg).unwrap_or_default();
 
     result
 }
@@ -72,7 +72,8 @@ pub fn img_to_meta(pth: &str, cfg: &Config) -> Img {
 fn raw_to_image(raw: &Vec<u8>, cfg: &Config) -> (DynamicImage, Img) {
     let reader = match ImageReader::new(Cursor::new(&raw)).with_guessed_format() {
         Ok(m) => m,
-        _ => {
+        Err(e) => {
+            println!("{e:#}");
             let gray: GrayImage = GrayImage::new(1, 1);
             return (DynamicImage::ImageLuma8(gray), Img::default());
         }
@@ -291,8 +292,34 @@ impl Img {
             img.hashc = hc.into_iter().collect();
         }
 
-        img.gen_uid(&cfg);
+        img.id = img.gen_uid(&cfg).unwrap_or_default();
         img
+    }
+
+    /// Generate the unique ID of the image
+    fn gen_uid(&mut self, cfg: &Config) -> Result<String, upon::Error> {
+        let mut engine = Engine::new();
+        engine.add_filter("lower", str::to_lowercase);
+        engine.add_filter("upper", str::to_uppercase);
+        engine.add_filter("trim", |s: &str| s.trim().to_owned());
+        engine.add_filter("slice", |s: &str, a: usize, b: usize| s[a..b].to_owned());
+
+        let template = engine.compile(&cfg.uid).unwrap();
+        match template.render(upon::value! {
+            img: &self, meta: &self.meta, hashc: &self.hashc, hashv: &self.hashv
+        }) {
+            Ok(i) => Ok(i),
+            Err(e) => {
+                let err = format!("{:#}", e)
+                    .lines()
+                    .skip(1)
+                    .map(|x| x)
+                    .collect::<Vec<&str>>()
+                    .join("\n");
+                eprintln!("\nInvalid UID!\n{err}\n");
+                Err(e)
+            }
+        }
     }
 
     /// Check if the image is null
@@ -300,15 +327,9 @@ impl Img {
         self.bytes == 0 || self.width == 0 || self.height == 0
     }
 
-    /// Generate the unique ID of the image
-    fn gen_uid(&mut self, cfg: &Config) {
-        let mut engine = Engine::new();
-        engine.add_filter("trim", |s: String| s.trim().to_owned());
-        engine.add_filter("lower", str::to_lowercase);
-        engine.add_filter("upper", str::to_uppercase);
-
-        let template = engine.compile(&cfg.uid).unwrap();
-        self.id = template.render(upon::value! { img: &self }).unwrap();
+    /// Check if the image is valid
+    pub fn is_valid(&self) -> bool {
+        self.id.len() > 0 && self.bytes > 0 && self.width > 0 && self.height > 0
     }
 
     fn merge(self, other: Img) -> Self {

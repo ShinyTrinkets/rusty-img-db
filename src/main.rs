@@ -6,9 +6,9 @@ use serde_json;
 use imgDB::cli::{Cli, Commands};
 use imgDB::config::Config;
 use imgDB::db::db_open;
-use imgDB::img::img_to_meta;
-use imgDB::os::find_files;
 use imgDB::gallery::generate_gallery;
+use imgDB::img::{img_to_meta, Img};
+use imgDB::os::find_files;
 
 fn main() {
     let cli: Cli = argh::from_env();
@@ -21,8 +21,15 @@ fn main() {
         Commands::Import(cmd) => {
             // IDEA: the import logic could be a separate file
             let input = &cmd.input.clone();
-            let cfg = Config::from(cmd);
-            let pths = find_files(input, &cfg);
+            let cfg = Config::default().merge(Config::from(cmd));
+            // println!("USING CFG {cfg:?}");
+            // validate config by creating a blank image, using the config
+            let v = Img::new_blank(&cfg);
+            if !v.is_valid() {
+                println!("Invalid config!\n");
+                return;
+            }
+            let pths = find_files(&input, &cfg);
             for p in pths {
                 let i = img_to_meta(p.to_str().unwrap(), &cfg);
                 println!("{}", serde_json::to_string(&i).unwrap());

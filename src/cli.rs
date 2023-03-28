@@ -26,6 +26,10 @@ pub struct ImportArgs {
     /// input files
     #[argh(option, short = 'i')]
     pub input: Vec<PathBuf>,
+
+    /// allowed extensions
+    #[argh(option)]
+    pub exts: Vec<String>,
     /// limit files
     #[argh(option, default = "0")]
     pub limit: u16,
@@ -43,6 +47,14 @@ pub struct ImportArgs {
     /// visual hashes
     #[argh(option)]
     pub vhash: Vec<HashV>,
+
+    /// thumb size
+    #[argh(option, default = "0")]
+    pub thumb_sz: u16,
+    /// thumb quality
+    #[argh(option, default = "0")]
+    pub thumb_qual: u8,
+    // pub thumb_type: ThumbType
 }
 
 /// Gallery sub-command

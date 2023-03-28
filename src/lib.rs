@@ -7,8 +7,8 @@ pub mod config;
 pub mod os;
 
 pub mod db;
-pub mod img;
 pub mod gallery;
+pub mod img;
 
 mod hashc;
 mod hashv;
