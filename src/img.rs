@@ -20,13 +20,13 @@ pub fn img_to_meta(pth: &str, cfg: &Config) -> Img {
 
     let (img, i1) = raw_to_image(&raw, cfg);
     if i1.is_null() {
-        println!("Cannot decode image format!");
+        log::warn!("Cannot decode image format!");
         return i1;
     };
 
     let i2 = raw_to_meta(&raw);
     if i2.is_null() {
-        println!("Cannot read image Metadata!");
+        log::warn!("Cannot read image metadata!");
         return i2.merge(i1);
     };
     // TODO: assert widths & heights (and others) are the same
@@ -73,7 +73,7 @@ fn raw_to_image(raw: &Vec<u8>, cfg: &Config) -> (DynamicImage, Img) {
     let reader = match ImageReader::new(Cursor::new(&raw)).with_guessed_format() {
         Ok(m) => m,
         Err(e) => {
-            println!("{e:#}");
+            log::warn!("Cannot read image: {e:#}");
             let gray: GrayImage = GrayImage::new(1, 1);
             return (DynamicImage::ImageLuma8(gray), Img::default());
         }
@@ -174,8 +174,6 @@ fn raw_to_meta(raw: &Vec<u8>) -> Img {
             Some(v) => v as u32,
             _ => 0,
         };
-    } else {
-        println!("No EXIF");
     }
 
     // if meta.has_iptc() {
@@ -316,7 +314,7 @@ impl Img {
                     .map(|x| x)
                     .collect::<Vec<&str>>()
                     .join("\n");
-                eprintln!("\nInvalid UID!\n{err}\n");
+                log::warn!("Invalid UID!\n{err}");
                 Err(e)
             }
         }

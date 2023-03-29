@@ -3,6 +3,7 @@
 use argh;
 use rayon::prelude::*;
 use serde_json;
+use simple_logger::SimpleLogger;
 
 use imgDB::cli::{Cli, Commands};
 use imgDB::config::Config;
@@ -12,6 +13,11 @@ use imgDB::img::{img_to_meta, Img};
 use imgDB::os::find_files;
 
 fn main() {
+    SimpleLogger::new()
+        .without_timestamps()
+        .with_colors(true)
+        .init()
+        .unwrap();
     let cli: Cli = argh::from_env();
     match cli.nested {
         // Steps to IMPORT to img-DB:
@@ -23,16 +29,19 @@ fn main() {
             // IDEA: the import logic could be a separate file
             let input = &cmd.input.clone();
             let cfg = Config::default().merge(Config::from(cmd));
-            // println!("USING CFG {cfg:?}");
+            log::debug!("Using {cfg:?}");
             // validate config by creating a blank image, using the config
             let v = Img::new_blank(&cfg);
             if !v.is_valid() {
-                println!("Invalid config!\n");
+                log::error!("Invalid config!");
                 return;
             }
             let pths = find_files(&input, &cfg);
             pths.par_iter().for_each(|p| {
                 let i = img_to_meta(p.to_str().unwrap(), &cfg);
+                if i.is_null() {
+                    return;
+                }
                 println!("{}", serde_json::to_string(&i).unwrap());
             })
         }
@@ -44,7 +53,7 @@ fn main() {
         }
         Commands::Links(cmd) => {
             let cfg = Config::from(cmd);
-            print!("NOT IMPLEMENTED!\n{:?}", cfg);
+            log::error!("NOT IMPLEMENTED!\n{:?}", cfg);
         }
     }
 }

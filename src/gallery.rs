@@ -9,6 +9,9 @@ pub fn generate_gallery(imgs: Vec<Img>, cfg: &Config) {
 
     let mut engine = Engine::new();
     engine.add_filter("length", f_length);
+    engine.add_filter("lower", str::to_lowercase);
+    engine.add_filter("upper", str::to_uppercase);
+    engine.add_filter("trim", |s: &str| s.trim().to_owned());
 
     let template = engine.compile(&tmpl).unwrap();
     let result = template

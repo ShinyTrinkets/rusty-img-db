@@ -1,5 +1,6 @@
 use glob::glob;
 use glob::GlobError;
+use log;
 use rand::seq::SliceRandom;
 use rand::thread_rng;
 use std::path::PathBuf;
@@ -17,7 +18,7 @@ pub fn find_files(pths: &[PathBuf], cfg: &Config) -> Vec<PathBuf> {
         }
         // FD is either a file, a dir, or a broken path
         if !fd.exists() {
-            println!("Invalid path: {:?}", fd);
+            log::warn!("Invalid path: {:?}!", fd);
             continue;
         }
         if fd.is_file() {
@@ -63,7 +64,7 @@ pub fn find_files(pths: &[PathBuf], cfg: &Config) -> Vec<PathBuf> {
                 }
             }
         } else {
-            println!("Invalid file kind: {:?}", fd);
+            log::warn!("Invalid file kind: {:?}!", fd);
         }
     }
 
