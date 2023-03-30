@@ -180,8 +180,8 @@
             <div class="no-group grid-layout">
                 {% for img in imgs -%}
                 <figure class="grid-item">
+                    <img id="{{ img.id }}" src="{{ img.b64 }}" data-pth="{{ img.pth }}">
                     <figcaption>
-                        <img src="{{ img.b64 }}" data-pth="{{ img.pth }}">
                         <small>{{ img.date }}</small>
                         <small>{{ img.format }} {{ img.width }}×{{ img.height }}</small>
                     </figcaption>

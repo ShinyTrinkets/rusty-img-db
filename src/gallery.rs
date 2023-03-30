@@ -5,6 +5,8 @@ use crate::config::Config;
 use crate::img::Img;
 
 pub fn generate_gallery(imgs: Vec<Img>, cfg: &Config) {
+    log::debug!("Using {cfg:?}");
+
     let tmpl = read_to_string("tmpl/img_gallery.html").unwrap();
 
     let mut engine = Engine::new();

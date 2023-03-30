@@ -26,6 +26,10 @@ pub struct ImportArgs {
     /// input files
     #[argh(option, short = 'i')]
     pub input: Vec<PathBuf>,
+    // output
+    /// database file to use
+    #[argh(option, short = 'x', default = "String::from(\"\")")]
+    pub dbname: String,
 
     /// allowed extensions
     #[argh(option)]
@@ -55,6 +59,10 @@ pub struct ImportArgs {
     #[argh(option, default = "0")]
     pub thumb_qual: u8,
     // pub thumb_type: ThumbType
+
+    /// log only warn & error
+    #[argh(switch)]
+    pub silent: bool,
 }
 
 /// Gallery sub-command
@@ -67,6 +75,10 @@ pub struct GalleryArgs {
     /// output file
     #[argh(option)]
     pub output: String,
+
+    /// log only warn & error
+    #[argh(switch)]
+    pub silent: bool,
 }
 
 /// Links sub-command
@@ -79,4 +91,8 @@ pub struct LinksArgs {
     /// output file
     #[argh(option)]
     pub output: String,
+
+    /// log only warn & error
+    #[argh(switch)]
+    pub silent: bool,
 }

@@ -45,12 +45,12 @@ impl Config {
     pub fn merge(self, other: Config) -> Self {
         Self {
             uid: if other.uid != "" { other.uid } else { self.uid },
-            dbname: if other.dbname != "" {
+            dbname: if other.dbname.len() > 0 {
                 other.dbname
             } else {
                 self.dbname
             },
-            output: if other.output != "" {
+            output: if other.output.len() > 0 {
                 other.output
             } else {
                 self.output
@@ -108,7 +108,7 @@ impl Default for Config {
     fn default() -> Self {
         Self {
             uid: String::from("{{ hashc.BLAKE256 }}"),
-            dbname: String::from("imgdb.htm"),
+            dbname: String::from("imgdb.jl"),
             output: String::from(""),
             exts: Vec::new(),
             limit: 0,
@@ -128,6 +128,7 @@ impl From<ImportArgs> for Config {
         let cfg = Config::default();
         Config {
             // inputs: args.input,
+            dbname: args.dbname,
             exts: args
                 .exts
                 .iter()

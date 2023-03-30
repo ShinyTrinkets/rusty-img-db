@@ -22,16 +22,16 @@ fn ahash(image: GrayImage) -> u128 {
     let (width, height) = image.dimensions();
 
     // calculate the average pixel value
-    let mut total = 0u64;
+    let mut total = 0u128;
     for pixel in image.pixels() {
-        total += pixel.0[0] as u64;
+        total += pixel.0[0] as u128;
     }
-    let mean = total / (height * width) as u64;
+    let mean = total / (height * width) as u128;
 
     // calculate a hash based on the mean
     let mut hash = 0u128;
     for pixel in image.pixels() {
-        if pixel.0[0] as u64 >= mean {
+        if pixel.0[0] as u128 >= mean {
             hash |= 1;
         } else {
             hash |= 0;
@@ -39,7 +39,7 @@ fn ahash(image: GrayImage) -> u128 {
         hash <<= 1;
     }
 
-    // println!("Total: {} Mean: {} AHash: {}", total, mean, hash);
+    log::debug!("AHash: {hash}");
     hash
 }
 
@@ -80,7 +80,7 @@ fn dhash(image: GrayImage) -> u128 {
         hash |= 0;
     }
 
-    // println!("DHash: {}", hash);
+    log::debug!("DHash: {hash}");
     hash
 }
 

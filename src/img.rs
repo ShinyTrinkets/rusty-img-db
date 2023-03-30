@@ -132,9 +132,9 @@ fn raw_to_meta(raw: &Vec<u8>) -> Img {
     if meta.has_exif() {
         // for t in meta.get_exif_tags().unwrap() {
         //     if t.contains(".Thumbnail.") {
-        //         println!("EXIF {}", t);
+        //         log::debug!("EXIF {}", t);
         //     } else {
-        //         println!("EXIF {} = {}", &t, meta.get_tag_string(&t).unwrap());
+        //         log::debug!("EXIF {} = {}", &t, meta.get_tag_string(&t).unwrap());
         //     }
         // }
 
@@ -178,13 +178,13 @@ fn raw_to_meta(raw: &Vec<u8>) -> Img {
 
     // if meta.has_iptc() {
     //     for t in meta.get_iptc_tags().unwrap() {
-    //         println!("IPTC {}  =  {}", &t, meta.get_tag_string(&t).unwrap());
+    //         log::debug!("IPTC {}  =  {}", &t, meta.get_tag_string(&t).unwrap());
     //     }
     // }
 
     if meta.has_xmp() {
         // for t in meta.get_xmp_tags().unwrap() {
-        //     println!("XMP {}  =  {}", &t, meta.get_tag_string(&t).unwrap());
+        //     log::debug!("XMP {}  =  {}", &t, meta.get_tag_string(&t).unwrap());
         // }
 
         if meta.has_tag("Xmp.xmp.Rating") {
